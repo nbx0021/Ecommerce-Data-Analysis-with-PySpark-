@@ -67,26 +67,3 @@ static-data-analysis/
 * Integrate **MLflow** to track model experiments.
 * Visualize geospatial seller distribution using **Leaflet/Folium**.
 
-```
-
----
-
-### 2. Data Coverage Report (What we used vs. What is left)
-
-You have successfully utilized about **70% of the dataset** relationships. Here is the breakdown:
-
-| Table | Status | What we did with it |
-| :--- | :--- | :--- |
-| **`df_orders`** | ✅ **Heavy Use** | Used for delivery delays, cohort analysis, and RFM recency. |
-| **`df_order_items`** | ✅ **Heavy Use** | Used for revenue calculation, top products, and RFM monetary value. |
-| **`df_customers`** | ✅ **Heavy Use** | Used to map orders to states/regions. |
-| **`df_products`** | ✅ **Moderate Use** | Joined to get category names. |
-| **`df_reviews`** | ✅ **Moderate Use** | Cleaned null comments (Ready for Sentiment Analysis). |
-| **`df_sellers`** | ❌ **Unused** | **Gap:** We haven't analyzed who the *best sellers* are yet. |
-| **`df_payments`** | ❌ **Unused** | **Gap:** We haven't analyzed *how* people pay (Credit Card vs. Boleto). |
-| **`df_geolocation`** | ⚠️ **Partial** | We discussed cleaning it, but haven't visualized the map yet. |
-
-### 3. Next Step (To reach 100%)
-To complete the portfolio, you should add one final analysis section for **Sellers & Payments**.
-
-**Would you like a code snippet to analyze "Seller Performance" (e.g., Which sellers have the most late deliveries) to fill that gap?**
