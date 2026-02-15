@@ -1,0 +1,23 @@
+# Python virtual environment
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+
+# Spark/Hadoop logs and warehouse
+spark-warehouse/
+metastore_db/
+derby.log
+eventlog/
+
+# Local Data (CSVs are large, better to keep them local or in a separate storage)
+data/*.csv
+
+# Environment variables and secrets
+.env
+service-account.json
+
+# IDE Settings
+.vscode/
+.idea/
