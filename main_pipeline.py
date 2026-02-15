@@ -24,18 +24,14 @@ def run_pipeline():
     print("\n--- 🏗️ BRONZE LAYER ---")
     for table_name, relative_path in DATASETS.items():
         
-        # 🛡️ DYNAMIC PATH LOGIC (No Hardcoded Email)
         if "DATABRICKS_RUNTIME_VERSION" in os.environ:
-            # We are on Databricks!
-            # os.getcwd() in a Repo usually returns /Workspace/Repos/email/repo_name
-            # We can use that directly without hardcoding
-            current_dir = os.getcwd()
-            full_path = f"file:{current_dir}/{relative_path}"
-        else:
-            # We are Local!
-            # Use the absolute path of your local project
+            # Databricks: Get absolute path but DO NOT add 'file:' prefix
+            # This allows Pandas to find it easily
             current_dir = os.getcwd()
             full_path = f"{current_dir}/{relative_path}"
+        else:
+            # Local: Standard path
+            full_path = relative_path
 
         ingest_to_bronze(spark, full_path, table_name)
 
