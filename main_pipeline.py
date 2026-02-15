@@ -1,4 +1,3 @@
-# main_pipeline.py
 from src.bronze.ingest import ingest_to_bronze
 from src.utils.spark_utils import get_spark_session
 import os

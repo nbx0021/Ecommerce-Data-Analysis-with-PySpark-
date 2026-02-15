@@ -1,4 +1,3 @@
-# src/utils/spark_utils.py
 from pyspark.sql import SparkSession
 import os
 
