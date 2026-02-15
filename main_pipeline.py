@@ -22,17 +22,19 @@ def run_pipeline():
 
     # --- STEP 1: BRONZE LAYER (Raw Ingestion) ---
     print("\n--- 🏗️ BRONZE LAYER ---")
+    
+    # 🛡️ FIX: Get the absolute path of THIS script (main_pipeline.py)
+    # This works regardless of where the notebook is running
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
     for table_name, relative_path in DATASETS.items():
         
-        if "DATABRICKS_RUNTIME_VERSION" in os.environ:
-            # Databricks: Get absolute path but DO NOT add 'file:' prefix
-            # This allows Pandas to find it easily
-            current_dir = os.getcwd()
-            full_path = f"{current_dir}/{relative_path}"
-        else:
-            # Local: Standard path
-            full_path = relative_path
-
+        # Construct the full path based on the script's location
+        full_path = os.path.join(base_dir, relative_path)
+        
+        # Standardize slashes for Linux/Databricks
+        full_path = full_path.replace("\\", "/")
+        
         ingest_to_bronze(spark, full_path, table_name)
 
     print("\n🎉 Pipeline Finished Successfully!")
