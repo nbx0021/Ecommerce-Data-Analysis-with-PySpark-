@@ -1,14 +1,18 @@
-
+# main_pipeline.py
 import sys
 import os
 from pathlib import Path
 from src.bronze.ingest import ingest_to_bronze
+from src.silver.clean import clean_silver_layer
+from src.gold.aggregate import aggregate_gold_layer
 from src.utils.spark_utils import get_spark_session
 
 def run_pipeline():
     spark = get_spark_session()
     
-    # 🧠 DYNAMIC ROOT DETECTION
+    # ---------------------------------------
+    # 1. SETUP & BRONZE (Raw Ingestion)
+    # ---------------------------------------
     try:
         PROJECT_ROOT = Path(__file__).resolve().parent
     except NameError:
@@ -33,15 +37,38 @@ def run_pipeline():
     for table_name, full_path in DATASETS.items():
         ingest_to_bronze(spark, full_path, table_name)
         
-    # VERIFICATION
-    print("\n--- 🔍 Verifying Data Load ---")
-    try:
-        # 🛑 OLD: global_temp.customers_bronze
-        # ✅ NEW: customers_bronze
-        row_count = spark.sql("SELECT count(*) FROM customers_bronze").collect()[0][0]
-        print(f"Verified: 'customers_bronze' has {row_count} rows.")
-    except Exception as e:
-        print(f"Verification Failed: {e}")
+    # ---------------------------------------
+    # 2. SILVER LAYER (Cleaning)
+    # ---------------------------------------
+    # Imports the functions we just wrote
+    # Note: Lit needs to be imported in the silver module, adding it here for safety if missing
+    from pyspark.sql.functions import lit 
+    clean_silver_layer(spark)
+    
+    # ---------------------------------------
+    # 3. GOLD LAYER (Aggregation)
+    # ---------------------------------------
+    aggregate_gold_layer(spark)
+    
+    # ---------------------------------------
+    # 4. FINAL VERIFICATION
+    # ---------------------------------------
+    print("\n--- 🚀 FINAL RESULTS ---")
+    
+    print("Delivery Metrics:")
+    spark.sql("SELECT * FROM gold_logistics_performance").show()
+    
+    print("\n1. Customer Segments (RFM Analysis):")
+    spark.sql("SELECT * FROM gold_customer_segments").show(truncate=False)
+    
+    print("\n2. Monthly Revenue Trend (Last 3 Months):")
+    spark.sql("SELECT * FROM gold_monthly_sales ORDER BY month DESC LIMIT 3").show()
+
+    print("\n3. Top 3 Categories by Revenue:")
+    spark.sql("SELECT * FROM gold_product_performance LIMIT 3").show()
+    
+    print("\n4. Logistics Performance:")
+    spark.sql("SELECT * FROM gold_logistics_performance").show()
 
     print("\n🎉 Pipeline Finished Successfully!")
 
