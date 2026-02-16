@@ -7,9 +7,8 @@ def ingest_to_bronze(spark, source_path, table_name):
     try:
         print(f"⏳ Ingesting {table_name}...")
         
-        # 1. READ (Source is Dynamic)
+        # 1. READ
         clean_path = source_path.replace("file:", "")
-        
         if not os.path.exists(clean_path):
             raise FileNotFoundError(f"Data missing at: {clean_path}")
 
@@ -18,9 +17,10 @@ def ingest_to_bronze(spark, source_path, table_name):
         df = spark.createDataFrame(pdf)
         df_enriched = df.withColumn("ingestion_timestamp", current_timestamp())
 
-        # 2. WRITE (Destination: Dynamic Scratch Disk)
-        # We use /local_disk0 to bypass Community Edition DBFS locks
-        LAKEHOUSE_ROOT = Path("/local_disk0/ecommerce_lakehouse")
+        # 2. WRITE (Corrected Path for Permissions)
+        # 🛑 OLD: /local_disk0/ecommerce_lakehouse (Permission Denied)
+        # ✅ NEW: /local_disk0/tmp/ecommerce_lakehouse (Writable)
+        LAKEHOUSE_ROOT = Path("/local_disk0/tmp/ecommerce_lakehouse")
         
         output_dir = LAKEHOUSE_ROOT / f"{table_name}_bronze"
         if not output_dir.exists():
