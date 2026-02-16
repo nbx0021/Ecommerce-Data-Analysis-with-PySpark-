@@ -1,5 +1,4 @@
-# src/silver/clean.py
-from pyspark.sql.functions import col, when, to_timestamp, coalesce
+from pyspark.sql.functions import col, when, to_timestamp, coalesce, lit  # <--- Added lit here
 from pyspark.sql.types import DoubleType
 
 def clean_silver_layer(spark):
