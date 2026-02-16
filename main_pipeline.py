@@ -1,4 +1,4 @@
-# main_pipeline.py
+
 import sys
 import os
 from pathlib import Path
@@ -9,18 +9,14 @@ def run_pipeline():
     spark = get_spark_session()
     
     # 🧠 DYNAMIC ROOT DETECTION
-    # This works because your notebook is now inside the Repo
     try:
-        # Try to get the file path (Standard Python)
         PROJECT_ROOT = Path(__file__).resolve().parent
     except NameError:
-        # Fallback for interactive mode
         PROJECT_ROOT = Path(os.getcwd())
     
     print(f"📍 Project Root: {PROJECT_ROOT}")
     DATA_DIR = PROJECT_ROOT / "data"
     
-    # Map datasets
     DATASETS = {
         "customers": (DATA_DIR / "olist_customers_dataset.csv").as_posix(),
         "orders": (DATA_DIR / "olist_orders_dataset.csv").as_posix(),
@@ -40,8 +36,10 @@ def run_pipeline():
     # VERIFICATION
     print("\n--- 🔍 Verifying Data Load ---")
     try:
-        row_count = spark.sql("SELECT count(*) FROM global_temp.customers_bronze").collect()[0][0]
-        print(f"Verified: 'global_temp.customers_bronze' has {row_count} rows.")
+        # 🛑 OLD: global_temp.customers_bronze
+        # ✅ NEW: customers_bronze
+        row_count = spark.sql("SELECT count(*) FROM customers_bronze").collect()[0][0]
+        print(f"Verified: 'customers_bronze' has {row_count} rows.")
     except Exception as e:
         print(f"Verification Failed: {e}")
 
