@@ -1,4 +1,3 @@
-
 import sys
 import os
 from pathlib import Path
@@ -8,21 +7,16 @@ from src.utils.spark_utils import get_spark_session
 def run_pipeline():
     spark = get_spark_session()
     
-    # ---------------------------------------------------------
-    # 🧠 DYNAMIC ROOT DETECTION (The Industry Standard)
-    # ---------------------------------------------------------
-    # 1. Get the absolute path of this file (main_pipeline.py)
-    # 2. Get its parent directory (The Repo Root)
-    # This works for ANY user, ANY folder name, ANY environment.
+    # 🧠 DYNAMIC ROOT DETECTION (Industry Standard)
+    # Finds the folder where THIS file (main_pipeline.py) lives
     PROJECT_ROOT = Path(__file__).resolve().parent
     
     print(f"📍 Detected Project Root: {PROJECT_ROOT}")
     
-    # Define the Data Directory relative to the Root
+    # Map datasets relative to the detected root
     DATA_DIR = PROJECT_ROOT / "data"
     
-    # Map datasets dynamically
-    # We use .as_posix() to ensure forward slashes (/) for compatibility
+    # Convert paths to strings (.as_posix()) for Spark compatibility
     DATASETS = {
         "customers": (DATA_DIR / "olist_customers_dataset.csv").as_posix(),
         "orders": (DATA_DIR / "olist_orders_dataset.csv").as_posix(),
