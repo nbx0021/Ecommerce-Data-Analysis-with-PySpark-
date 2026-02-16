@@ -1,3 +1,4 @@
+# main_pipeline.py
 import sys
 import os
 from pathlib import Path
@@ -7,16 +8,19 @@ from src.utils.spark_utils import get_spark_session
 def run_pipeline():
     spark = get_spark_session()
     
-    # 🧠 DYNAMIC ROOT DETECTION (Industry Standard)
-    # Finds the folder where THIS file (main_pipeline.py) lives
-    PROJECT_ROOT = Path(__file__).resolve().parent
+    # 🧠 DYNAMIC ROOT DETECTION
+    # This works because your notebook is now inside the Repo
+    try:
+        # Try to get the file path (Standard Python)
+        PROJECT_ROOT = Path(__file__).resolve().parent
+    except NameError:
+        # Fallback for interactive mode
+        PROJECT_ROOT = Path(os.getcwd())
     
-    print(f"📍 Detected Project Root: {PROJECT_ROOT}")
-    
-    # Map datasets relative to the detected root
+    print(f"📍 Project Root: {PROJECT_ROOT}")
     DATA_DIR = PROJECT_ROOT / "data"
     
-    # Convert paths to strings (.as_posix()) for Spark compatibility
+    # Map datasets
     DATASETS = {
         "customers": (DATA_DIR / "olist_customers_dataset.csv").as_posix(),
         "orders": (DATA_DIR / "olist_orders_dataset.csv").as_posix(),
@@ -29,9 +33,17 @@ def run_pipeline():
         "category_translation": (DATA_DIR / "product_category_name_translation.csv").as_posix()
     }
 
-    print("\n--- 🏗️ BRONZE LAYER ---")
+    print("\n--- 🏗️ BRONZE LAYER (In-Memory) ---")
     for table_name, full_path in DATASETS.items():
         ingest_to_bronze(spark, full_path, table_name)
+        
+    # VERIFICATION
+    print("\n--- 🔍 Verifying Data Load ---")
+    try:
+        row_count = spark.sql("SELECT count(*) FROM global_temp.customers_bronze").collect()[0][0]
+        print(f"Verified: 'global_temp.customers_bronze' has {row_count} rows.")
+    except Exception as e:
+        print(f"Verification Failed: {e}")
 
     print("\n🎉 Pipeline Finished Successfully!")
 
