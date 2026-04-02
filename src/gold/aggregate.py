@@ -2,7 +2,10 @@
 """
 Gold Layer — Business-Level Aggregations and KPIs.
 All inputs read from Silver layer (proper Medallion lineage).
-Includes caching for frequently-joined DataFrames.
+
+NOTE: Uses spark.sql() instead of spark.table() for Databricks CE
+serverless compatibility — spark.table() can trigger PERSIST TABLE
+checks internally on Spark Connect, which is blocked on serverless.
 """
 from pyspark.sql.functions import (
     col, datediff, avg, sum, count, round, lit,
@@ -14,6 +17,15 @@ from src.utils.data_quality import check_row_count
 logger = get_logger("gold.aggregate")
 
 
+def _read_view(spark, view_name):
+    """
+    Read a temp view using spark.sql() instead of spark.table().
+    This avoids the PERSIST TABLE error on Databricks CE serverless
+    (Spark Connect blocks cache/persist during plan analysis of spark.table).
+    """
+    return spark.sql(f"SELECT * FROM {view_name}")
+
+
 def aggregate_gold_layer(spark):
     """
     Builds all Gold-layer aggregations from Silver views.
@@ -22,10 +34,10 @@ def aggregate_gold_layer(spark):
     logger.info("━━━ 🏆 GOLD LAYER (Advanced Analytics) ━━━")
 
     # ─── Load shared Silver tables ───────────────────────────
-    # Note: .cache() is not supported on Databricks CE serverless
-    df_orders = spark.table("orders_silver")
-    df_items = spark.table("order_items_silver")
-    df_products = spark.table("products_silver")
+    # Using spark.sql() for Databricks CE serverless compatibility
+    df_orders = _read_view(spark, "orders_silver")
+    df_items = _read_view(spark, "order_items_silver")
+    df_products = _read_view(spark, "products_silver")
 
     # ─────────────────────────────────────────────────────────
     # 1. DELIVERY PERFORMANCE (Logistics)
@@ -48,13 +60,13 @@ def aggregate_gold_layer(spark):
         round(avg("estimated_days"), 2).alias("avg_estimated_days"),
         round(avg(col("actual_days") - col("estimated_days")), 2).alias("avg_delay_vs_estimate"),
         count("*").alias("total_delivered_orders"),
-        # NEW: On-time delivery rate
         round(
             count(when(col("actual_days") <= col("estimated_days"), 1)) / count("*") * 100, 2
         ).alias("on_time_delivery_pct")
     )
 
     df_gold_delivery.createOrReplaceTempView("gold_logistics_performance")
+    logger.info("   ✅ gold_logistics_performance created")
 
     # ─────────────────────────────────────────────────────────
     # 2. MONTHLY SALES TREND (Finance)
@@ -74,6 +86,7 @@ def aggregate_gold_layer(spark):
         .orderBy("month")
 
     df_trend.createOrReplaceTempView("gold_monthly_sales")
+    logger.info("   ✅ gold_monthly_sales created")
 
     # ─────────────────────────────────────────────────────────
     # 3. SALES BY CATEGORY (Product)
@@ -92,14 +105,14 @@ def aggregate_gold_layer(spark):
         .orderBy(col("total_revenue").desc())
 
     df_cat_sales.createOrReplaceTempView("gold_product_performance")
+    logger.info("   ✅ gold_product_performance created")
 
     # ─────────────────────────────────────────────────────────
     # 4. RFM SEGMENTATION (Marketing)
     # "Who are our Champions vs. At-Risk customers?"
-    # FIXED: Now reads from customers_silver (was customers_bronze)
     # ─────────────────────────────────────────────────────────
     logger.info("📊 [4/7] Calculating Customer RFM Segments...")
-    df_customers = spark.table("customers_silver")
+    df_customers = _read_view(spark, "customers_silver")
 
     rfm_base = df_orders.join(df_items, "order_id") \
         .join(df_customers, "customer_id") \
@@ -111,7 +124,6 @@ def aggregate_gold_layer(spark):
         ) \
         .withColumn("recency_days", datediff(current_date(), col("last_purchase_date")))
 
-    # RFM Scoring Logic (Rule-Based)
     rfm_segmented = rfm_base.withColumn(
         "customer_segment",
         when((col("recency_days") < 90) & (col("frequency") >= 2), "Champion")
@@ -131,13 +143,14 @@ def aggregate_gold_layer(spark):
         .orderBy(col("avg_spend").desc())
 
     df_rfm_summary.createOrReplaceTempView("gold_customer_segments")
+    logger.info("   ✅ gold_customer_segments created")
 
     # ─────────────────────────────────────────────────────────
     # 5. PAYMENT ANALYSIS (Finance)
     # "How do customers prefer to pay?"
     # ─────────────────────────────────────────────────────────
     logger.info("📊 [5/7] Aggregating Payment Analysis...")
-    df_payments = spark.table("payments_silver")
+    df_payments = _read_view(spark, "payments_silver")
 
     df_pay_analysis = df_payments.groupBy("payment_type") \
         .agg(
@@ -149,13 +162,14 @@ def aggregate_gold_layer(spark):
         .orderBy(col("total_value").desc())
 
     df_pay_analysis.createOrReplaceTempView("gold_payment_analysis")
+    logger.info("   ✅ gold_payment_analysis created")
 
     # ─────────────────────────────────────────────────────────
     # 6. SELLER PERFORMANCE
     # "Who are the top sellers? Who delivers slowest?"
     # ─────────────────────────────────────────────────────────
     logger.info("📊 [6/7] Aggregating Seller Performance...")
-    df_sellers = spark.table("sellers_silver")
+    df_sellers = _read_view(spark, "sellers_silver")
 
     df_seller_perf = df_items.join(df_sellers, "seller_id") \
         .join(df_orders, "order_id") \
@@ -168,13 +182,14 @@ def aggregate_gold_layer(spark):
         .orderBy(col("total_revenue").desc())
 
     df_seller_perf.createOrReplaceTempView("gold_seller_performance")
+    logger.info("   ✅ gold_seller_performance created")
 
     # ─────────────────────────────────────────────────────────
     # 7. REVIEW INSIGHTS
     # "Which categories get the best/worst reviews?"
     # ─────────────────────────────────────────────────────────
     logger.info("📊 [7/7] Aggregating Review Insights...")
-    df_reviews = spark.table("reviews_silver")
+    df_reviews = _read_view(spark, "reviews_silver")
 
     df_review_insights = df_reviews.join(df_orders, "order_id") \
         .join(df_items, "order_id") \
@@ -190,7 +205,7 @@ def aggregate_gold_layer(spark):
         .orderBy(col("avg_review_score").desc())
 
     df_review_insights.createOrReplaceTempView("gold_review_insights")
-
+    logger.info("   ✅ gold_review_insights created")
 
     logger.info(
         "✅ Gold Views Created: gold_logistics_performance, gold_monthly_sales, "

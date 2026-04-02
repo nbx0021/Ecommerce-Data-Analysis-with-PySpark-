@@ -3,6 +3,9 @@
 Silver Layer — Data Cleaning, Type Casting, and Enrichment.
 Cleans ALL Bronze tables (not just orders/items/products).
 Includes data quality validation after each transformation.
+
+NOTE: Uses spark.sql() instead of spark.table() for Databricks CE
+serverless compatibility (Spark Connect can block spark.table).
 """
 from pyspark.sql.functions import (
     col, when, to_timestamp, coalesce, lit, 
@@ -13,6 +16,11 @@ from src.utils.logger import get_logger
 from src.utils.data_quality import check_row_count, check_nulls
 
 logger = get_logger("silver.clean")
+
+
+def _read_view(spark, view_name):
+    """Read a temp view using spark.sql() for serverless compatibility."""
+    return spark.sql(f"SELECT * FROM {view_name}")
 
 
 def clean_silver_layer(spark):
@@ -30,7 +38,7 @@ def clean_silver_layer(spark):
     # Logic: Convert strings to timestamps, handle nulls
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [1/7] Cleaning Orders...")
-    df_orders = spark.table("orders_bronze")
+    df_orders = _read_view(spark, "orders_bronze")
 
     # Cast all timestamp columns
     timestamp_cols = [
@@ -56,7 +64,7 @@ def clean_silver_layer(spark):
     # Logic: Cast price/freight to Double
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [2/7] Cleaning Order Items...")
-    df_items = spark.table("order_items_bronze")
+    df_items = _read_view(spark, "order_items_bronze")
 
     df_items = (df_items
         .withColumn("price", col("price").cast(DoubleType()))
@@ -70,8 +78,8 @@ def clean_silver_layer(spark):
     # 3. CLEAN PRODUCTS (with English category translation)
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [3/7] Cleaning Products...")
-    df_products = spark.table("products_bronze")
-    df_translations = spark.table("category_translation_bronze")
+    df_products = _read_view(spark, "products_bronze")
+    df_translations = _read_view(spark, "category_translation_bronze")
 
     # Handle null categories
     df_products = df_products.fillna({"product_category_name": "unknown"})
@@ -93,7 +101,7 @@ def clean_silver_layer(spark):
     # 4. CLEAN CUSTOMERS (deduplicate by customer_unique_id)
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [4/7] Cleaning Customers...")
-    df_customers = spark.table("customers_bronze")
+    df_customers = _read_view(spark, "customers_bronze")
 
     # Standardize city names
     df_customers = (df_customers
@@ -111,7 +119,7 @@ def clean_silver_layer(spark):
     # 5. CLEAN PAYMENTS (cast values, validate types)
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [5/7] Cleaning Payments...")
-    df_payments = spark.table("order_payments_bronze")
+    df_payments = _read_view(spark, "order_payments_bronze")
 
     df_payments = (df_payments
         .withColumn("payment_value", col("payment_value").cast(DoubleType()))
@@ -134,7 +142,7 @@ def clean_silver_layer(spark):
     # 6. CLEAN SELLERS (standardize city/state)
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [6/7] Cleaning Sellers...")
-    df_sellers = spark.table("sellers_bronze")
+    df_sellers = _read_view(spark, "sellers_bronze")
 
     df_sellers = (df_sellers
         .withColumn("seller_city", trim(lower(col("seller_city"))))
@@ -148,7 +156,7 @@ def clean_silver_layer(spark):
     # 7. CLEAN REVIEWS (cast score, handle null comments)
     # ─────────────────────────────────────────────────────────
     logger.info("✨ [7/7] Cleaning Reviews...")
-    df_reviews = spark.table("order_reviews_bronze")
+    df_reviews = _read_view(spark, "order_reviews_bronze")
 
     df_reviews = (df_reviews
         .withColumn("review_score", col("review_score").cast(IntegerType()))
