@@ -41,7 +41,7 @@ def ingest_to_bronze(spark, source_path: str, table_name: str) -> int:
 
         # --- 2. READ via Pandas Bridge ---
         # (spark.read.csv() errors on Databricks CE; Pandas bridge is required)
-        pdf = pd.read_csv(clean_path, dtype=str, keep_default_na=False)
+        pdf = pd.read_csv(clean_path, dtype=str)
         
         # --- 3. CONVERT to Spark with Schema ---
         schema = SCHEMA_REGISTRY.get(table_name)

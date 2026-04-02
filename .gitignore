@@ -25,3 +25,5 @@ service-account.json
 # Logs
 logs/
 *.log
+
+trigger_pipeline.py
