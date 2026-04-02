@@ -21,3 +21,7 @@ service-account.json
 # IDE Settings
 .vscode/
 .idea/
+
+# Logs
+logs/
+*.log
