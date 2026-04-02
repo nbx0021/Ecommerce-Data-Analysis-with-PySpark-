@@ -34,10 +34,6 @@ DATASETS = {
 DQ_NULL_THRESHOLD = 0.05        # Warn if null rate exceeds 5%
 DQ_MIN_ROWS = 1                 # Minimum rows per view
 
-# ─── Spark Tuning for Databricks CE ─────────────────────────
-SPARK_SHUFFLE_PARTITIONS = 8    # Default 200 is overkill for ~100k rows
-SPARK_AQE_ENABLED = True        # Adaptive Query Execution
-
 # ─── Layer View Naming Convention ────────────────────────────
 def bronze_view(name: str) -> str:
     return f"{name}_bronze"
