@@ -21,10 +21,10 @@ def aggregate_gold_layer(spark):
     """
     logger.info("━━━ 🏆 GOLD LAYER (Advanced Analytics) ━━━")
 
-    # ─── Load & Cache shared Silver tables ──────────────────
-    # These are joined multiple times; caching avoids recomputation
-    df_orders = spark.table("orders_silver").cache()
-    df_items = spark.table("order_items_silver").cache()
+    # ─── Load shared Silver tables ───────────────────────────
+    # Note: .cache() is not supported on Databricks CE serverless
+    df_orders = spark.table("orders_silver")
+    df_items = spark.table("order_items_silver")
     df_products = spark.table("products_silver")
 
     # ─────────────────────────────────────────────────────────
@@ -191,9 +191,6 @@ def aggregate_gold_layer(spark):
 
     df_review_insights.createOrReplaceTempView("gold_review_insights")
 
-    # ─── Unpersist cached DataFrames ────────────────────────
-    df_orders.unpersist()
-    df_items.unpersist()
 
     logger.info(
         "✅ Gold Views Created: gold_logistics_performance, gold_monthly_sales, "
